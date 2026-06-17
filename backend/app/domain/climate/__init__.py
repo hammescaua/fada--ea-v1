@@ -8,9 +8,12 @@ from app.domain.climate.indices import (
     DailyWeather,
     DrySpellSummary,
     accumulated_rainfall,
+    days_above,
     dry_spells,
     growing_degree_days,
+    hargreaves_et0,
     simple_water_deficit,
+    with_hargreaves_et0,
 )
 
 __all__ = [
@@ -19,5 +22,8 @@ __all__ = [
     "growing_degree_days",
     "accumulated_rainfall",
     "dry_spells",
+    "days_above",
+    "hargreaves_et0",
+    "with_hargreaves_et0",
     "simple_water_deficit",
 ]

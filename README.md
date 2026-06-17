@@ -24,24 +24,43 @@ linguagem natural (Claude) para orquestração e explicação.
 
 ## Estado atual
 
-**MVP em construção — Camada 1 (Inteligência Regional), soja, Horizontina + Noroeste RS.**
+**MVP — Camada 1 (Inteligência Regional) funcionando ponta a ponta** com dados reais:
+soja, microrregião Três Passos (Noroeste RS). Dado município + cultura + safra,
+retorna produtividade estimada (sc/ha), intervalo, cenários, riscos climáticos,
+janela de plantio e explicação em linguagem natural.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/regional-intelligence \
+  -H 'Content-Type: application/json' \
+  -d '{"municipality":"Horizontina","uf":"RS","crop":"soja","season":"2026/27"}'
+```
 
 Veja:
+- [`docs/MVP_REGIONAL_INTELLIGENCE.md`](docs/MVP_REGIONAL_INTELLIGENCE.md) — a fatia, com resultados reais
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — arquitetura e decisões técnicas
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — MVP / V1 / V2 / V3
 - [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md) — modelo de domínio e ubiquitous language
 - [`docs/adr/`](docs/adr/) — Architecture Decision Records
+- [`examples/`](examples/) — saídas reais do endpoint
 
 ## Rodando o backend (dev)
 
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-pytest                      # roda os testes de domínio
+pip install -e ".[ml,dev]"
+
+# (opcional) reconstruir dataset e modelo a partir das fontes públicas:
+python -m pipelines.build_dataset   # IBGE + Open-Meteo/NASA -> data/features
+python -m pipelines.train           # compara Ridge/RF/XGBoost -> data/models (MLflow)
+
+pytest                              # 28 testes (domínio + serviço + API)
 uvicorn app.main:app --reload
 # http://localhost:8000/api/v1/health  ·  http://localhost:8000/docs
 ```
+
+O modelo treinado (`data/models/*.json`) e o dataset (`data/features/*.csv`) já vêm
+versionados — o endpoint funciona out-of-the-box após `pip install`.
 
 ## Stack
 

@@ -14,7 +14,8 @@ Referências de método:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, replace
 from datetime import date
 
 
@@ -122,6 +123,51 @@ def dry_spells(
         count += 1
         longest = max(longest, current)
     return DrySpellSummary(count=count, longest_days=longest, total_dry_days=total_dry)
+
+
+def days_above(series: list[DailyWeather], tmax_threshold: float = 35.0) -> int:
+    """Conta dias com temperatura máxima acima de um limiar.
+
+    Para soja, dias com Tmax > 35 °C no período reprodutivo causam estresse térmico
+    (aborto de flores/vagens). É o indicador de estresse de calor do MVP.
+    """
+    return sum(1 for d in series if d.tmax > tmax_threshold)
+
+
+def hargreaves_et0(tmin: float, tmax: float, latitude_deg: float, day: date) -> float:
+    """Evapotranspiração de referência (mm/dia) pelo método de Hargreaves-Samani.
+
+    Escolhido por exigir apenas temperatura + latitude (sem radiação/umidade/vento
+    medidos), o que o torna robusto e reprodutível a partir do que NASA POWER e
+    Open-Meteo fornecem. Radiação extraterrestre (Ra) é calculada analiticamente
+    pela latitude e dia do ano (FAO-56).
+
+    ET0 = 0.0023 · (Tmean + 17.8) · (Tmax − Tmin)^0.5 · Ra(mm/dia)
+    """
+    phi = math.radians(latitude_deg)
+    j = day.timetuple().tm_yday
+    dr = 1.0 + 0.033 * math.cos(2.0 * math.pi / 365.0 * j)  # distância Terra-Sol
+    decl = 0.409 * math.sin(2.0 * math.pi / 365.0 * j - 1.39)  # declinação solar
+    # ângulo horário do pôr do sol (clamp para regiões/dias extremos)
+    ws_arg = max(-1.0, min(1.0, -math.tan(phi) * math.tan(decl)))
+    ws = math.acos(ws_arg)
+    gsc = 0.0820  # constante solar MJ/m²/min
+    ra = (24.0 * 60.0 / math.pi) * gsc * dr * (
+        ws * math.sin(phi) * math.sin(decl)
+        + math.cos(phi) * math.cos(decl) * math.sin(ws)
+    )  # MJ/m²/dia
+    ra_mm = 0.408 * ra  # conversão para equivalente em mm/dia
+    tmean = (tmin + tmax) / 2.0
+    delta_t = max(0.0, tmax - tmin)
+    return 0.0023 * (tmean + 17.8) * math.sqrt(delta_t) * ra_mm
+
+
+def with_hargreaves_et0(series: list[DailyWeather], latitude_deg: float) -> list[DailyWeather]:
+    """Retorna a série com ``et0_mm`` preenchido via Hargreaves (não muta a entrada)."""
+    return [
+        replace(d, et0_mm=hargreaves_et0(d.tmin, d.tmax, latitude_deg, d.day))
+        for d in series
+    ]
 
 
 def simple_water_deficit(

@@ -1,0 +1,28 @@
+# Grafo reproduzível do pipeline (dvc repro). Os dados são pequenos e ficam no git;
+# o DVC documenta/reproduz as etapas. Um remote DVC entra na fase de escala (V1+).
+stages:
+  build_dataset:
+    cmd: cd backend && python -m pipelines.build_dataset
+    deps:
+      - backend/pipelines/build_dataset.py
+      - backend/app/domain/features
+      - backend/app/domain/crop
+      - backend/app/data/connectors
+    params:
+      - region
+      - crop
+    outs:
+      - data/features/soybean_tres_passos.csv:
+          cache: false
+
+  train:
+    cmd: cd backend && python -m pipelines.train
+    deps:
+      - backend/pipelines/train.py
+      - data/features/soybean_tres_passos.csv
+    params:
+      - features
+      - model
+    outs:
+      - data/models/soybean_regional_baseline.json:
+          cache: false

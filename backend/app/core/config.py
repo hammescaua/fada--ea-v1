@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Raiz do repositório (.../fada--ea-v1), dois níveis acima deste arquivo.
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -10,6 +15,14 @@ class Settings(BaseSettings):
 
     app_name: str = "FADA — Farm AI Decision Agent"
     environment: str = "development"
+
+    # Camadas de dados (DVC): raw -> intermediate -> features -> models
+    data_dir: Path = PROJECT_ROOT / "data"
+    model_path: Path = PROJECT_ROOT / "data" / "models" / "soybean_regional_baseline.json"
+
+    @property
+    def cache_dir(self) -> Path:
+        return self.data_dir / "raw" / "cache"
 
     # Persistência (usado a partir da V1)
     database_url: str = "postgresql+psycopg://fada:fada@localhost:5432/fada"

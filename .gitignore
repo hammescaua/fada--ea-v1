@@ -11,11 +11,13 @@ venv/
 .env
 *.local
 
-# Data / models (versionar via DVC, não git)
-data/raw/
-data/curated/
+# Data layers: raw/intermediate são reproduzíveis (gitignored); features/models
+# são commitados para o endpoint funcionar out-of-the-box.
+data/raw/cache/
+data/intermediate/*
+!data/intermediate/.gitkeep
 mlruns/
-*.parquet
+mlflow.db
 
 # OS / editores
 .DS_Store
