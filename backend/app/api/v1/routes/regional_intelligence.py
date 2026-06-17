@@ -38,6 +38,17 @@ def get_service() -> RegionalIntelligenceService:
     return RegionalIntelligenceService(model=model, explainer=build_explainer())
 
 
+@router.get("/municipalities")
+def municipalities(
+    service: RegionalIntelligenceService = Depends(get_service),
+) -> list[dict]:
+    """Municípios cobertos pelo MVP (para popular seletores no frontend)."""
+    return sorted(
+        ({"code": int(c), "name": i["name"]} for c, i in service.model.municipalities().items()),
+        key=lambda m: m["name"],
+    )
+
+
 @router.post("/regional-intelligence", response_model=RegionalIntelligenceResponse)
 def regional_intelligence(
     body: RegionalIntelligenceRequest,

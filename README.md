@@ -43,9 +43,22 @@ curl -X POST http://localhost:8000/api/v1/planting-window-optimization \
   -d '{"municipality":"Horizontina","crop":"soja","season":"2026/27","risk_aversion":0.5}'
 ```
 
+**Flywheel de dados + conversacional** — captura de ground truth (Farm/Field/
+CropCycle/YieldObservation) e um assistente que roteia perguntas para os serviços
+determinísticos (o LLM não gera números):
+
+```bash
+curl -X POST http://localhost:8000/api/v1/assistant \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"Qual a melhor data para plantar soja em Horizontina?"}'
+```
+
+E um **frontend** (Next.js) em [`frontend/`](frontend/) consumindo todos os endpoints.
+
 Veja:
 - [`docs/MVP_REGIONAL_INTELLIGENCE.md`](docs/MVP_REGIONAL_INTELLIGENCE.md) — a fatia, com resultados reais
 - [`docs/PLANTING_DATE_WHATIF.md`](docs/PLANTING_DATE_WHATIF.md) — What-If de data de plantio
+- [`docs/FLYWHEEL_AND_ASSISTANT.md`](docs/FLYWHEEL_AND_ASSISTANT.md) — captura de ground truth + orchestrator
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — arquitetura e decisões técnicas
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — MVP / V1 / V2 / V3
 - [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md) — modelo de domínio e ubiquitous language

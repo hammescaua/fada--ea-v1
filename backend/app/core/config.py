@@ -24,8 +24,9 @@ class Settings(BaseSettings):
     def cache_dir(self) -> Path:
         return self.data_dir / "raw" / "cache"
 
-    # Persistência (usado a partir da V1)
-    database_url: str = "postgresql+psycopg://fada:fada@localhost:5432/fada"
+    # Persistência. SQLite por padrão (rodável out-of-the-box); Postgres em produção
+    # via FADA_DATABASE_URL. Ver ADR-0009.
+    database_url: str = f"sqlite:///{PROJECT_ROOT / 'data' / 'fada.db'}"
     redis_url: str = "redis://localhost:6379/0"
 
     # LLM (Decision Engine — orquestração/explicação/RAG). Ver ADR-0002.

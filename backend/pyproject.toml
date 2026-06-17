@@ -14,9 +14,14 @@ dependencies = [
     "pydantic-settings>=2.2",
     "httpx>=0.27",
     "numpy>=1.26",
+    "sqlalchemy>=2.0",
 ]
 
 [project.optional-dependencies]
+# Driver Postgres para produção (dev usa SQLite, sem driver extra).
+pg = ["psycopg[binary]>=3.1"]
+# Camada LLM opcional do orchestrator/explainer (ADR-0002/0010).
+llm = ["anthropic>=0.39"]
 # Dependências pesadas usadas SÓ no pipeline de treino/ingestão — não no runtime da API.
 # O artefato do modelo é JSON inspecionável; a API faz inferência só com numpy.
 ml = [
