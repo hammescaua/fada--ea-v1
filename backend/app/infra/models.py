@@ -111,3 +111,20 @@ class ProductORM(Base):
     unit: Mapped[str | None] = mapped_column(String(20), nullable=True)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class FarmPerformanceProfileORM(Base):
+    """Memória adaptativa por fazenda (um perfil por fazenda)."""
+
+    __tablename__ = "farm_performance_profiles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    farm_id: Mapped[int] = mapped_column(ForeignKey("farms.id"), unique=True)
+    number_of_cycles: Mapped[int]
+    mean_relative_residual: Mapped[float] = mapped_column(Float)
+    mean_residual_sc_ha: Mapped[float] = mapped_column(Float)
+    median_residual_sc_ha: Mapped[float] = mapped_column(Float)
+    variance_relative: Mapped[float] = mapped_column(Float)
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )

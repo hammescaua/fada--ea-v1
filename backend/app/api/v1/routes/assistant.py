@@ -10,8 +10,9 @@ from app.api.v1.routes.regional_intelligence import _model
 from app.engine import build_explainer
 from app.engine.orchestrator import DeterministicRouter, Orchestrator
 from app.infra.db import get_session
-from app.infra.repositories import EventRepository, FarmRepository
+from app.infra.repositories import AdaptiveRepository, EventRepository, FarmRepository
 from app.schemas.assistant import AssistantRequest, AssistantResponse
+from app.services.adaptive import AdaptiveService
 from app.services.cost import CostService
 from app.services.regional_intelligence import RegionalIntelligenceService
 
@@ -25,11 +26,13 @@ def get_orchestrator(session: Session = Depends(get_session)) -> Orchestrator:
     except FileNotFoundError as exc:
         raise HTTPException(503, "Modelo/grid ausente.") from exc
     names = [info["name"] for info in model.municipalities().values()]
+    farms = FarmRepository(session)
     return Orchestrator(
         regional=RegionalIntelligenceService(model=model, explainer=build_explainer()),
         planting=planting,
-        cost=CostService(
-            farms=FarmRepository(session), events=EventRepository(session), model=model
+        cost=CostService(farms=farms, events=EventRepository(session), model=model),
+        adaptive=AdaptiveService(
+            farms=farms, adaptive=AdaptiveRepository(session), model=model
         ),
         router=DeterministicRouter(known_municipalities=names),
     )
@@ -43,5 +46,6 @@ def assistant(
         **orch.handle(
             body.message, ctx_municipality=body.municipality,
             ctx_crop_cycle_id=body.crop_cycle_id, ctx_price_per_bag=body.price_per_bag,
+            ctx_farm_id=body.farm_id,
         )
     )

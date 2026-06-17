@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 
+from app.services.adaptive import AdaptiveService, FarmNotFound
 from app.services.cost import AreaUnknown, CostService, CycleNotFound
 from app.services.planting_date import PlantingDateService
 from app.services.regional_intelligence import (
@@ -39,11 +40,18 @@ class Intent(str, Enum):
     COST_PER_HECTARE = "cost_per_hectare"
     APPLICATIONS = "applications_count"
     BREAK_EVEN = "break_even"
+    ABOVE_AVERAGE = "above_average"
+    LEARNED = "learned"
+    RELIABILITY = "reliability"
+    REGIONAL_VS_PERSONALIZED = "regional_vs_personalized"
     UNKNOWN = "unknown"
 
 
 COST_INTENTS = frozenset(
     {Intent.COST_TOTAL, Intent.COST_PER_HECTARE, Intent.APPLICATIONS, Intent.BREAK_EVEN}
+)
+ADAPTIVE_INTENTS = frozenset(
+    {Intent.ABOVE_AVERAGE, Intent.LEARNED, Intent.RELIABILITY, Intent.REGIONAL_VS_PERSONALIZED}
 )
 
 
@@ -102,6 +110,17 @@ class DeterministicRouter:
         muni = self._municipality(message) or ctx_municipality
         planting = self._planting_date(message, harvest_year)
 
+        # Intenções adaptativas (personalização por fazenda).
+        if re.search(r"diferenca.*(regional|personaliz)|regional.*personaliz|"
+                     r"personaliz.*regional", n):
+            return Routed(Intent.REGIONAL_VS_PERSONALIZED, muni, season, planting)
+        if re.search(r"confiav|confianca|quao\s+confi", n):
+            return Routed(Intent.RELIABILITY, muni, season, planting)
+        if re.search(r"aprend|sobre\s+minha\s+(area|fazenda|lavoura)", n):
+            return Routed(Intent.LEARNED, muni, season, planting)
+        if re.search(r"acima\s+da\s+media|abaixo\s+da\s+media|costuma\s+produz", n):
+            return Routed(Intent.ABOVE_AVERAGE, muni, season, planting)
+
         # Intenções de custo têm prioridade (palavras como "quanto" são ambíguas).
         if re.search(r"empatar|break.?even|empate", n):
             intent = Intent.BREAK_EVEN
@@ -127,16 +146,20 @@ class Orchestrator:
     regional: RegionalIntelligenceService
     planting: PlantingDateService
     cost: CostService
+    adaptive: AdaptiveService
     router: DeterministicRouter
 
     def handle(
         self, message: str, ctx_municipality: str | None = None,
         ctx_crop_cycle_id: int | None = None, ctx_price_per_bag: float | None = None,
+        ctx_farm_id: int | None = None,
     ) -> dict:
         r = self.router.route(message, ctx_municipality)
 
         if r.intent in COST_INTENTS:
             return self._dispatch_cost(r, ctx_crop_cycle_id, ctx_price_per_bag)
+        if r.intent in ADAPTIVE_INTENTS:
+            return self._dispatch_adaptive(r, ctx_farm_id)
 
         if r.municipality is None:
             return self._reply(r, None, "Para responder, preciso do município (ex.: Horizontina).")
@@ -181,6 +204,42 @@ class Orchestrator:
             return self._reply(r, None, f"Safra (crop_cycle_id={cycle_id}) não encontrada.")
         except AreaUnknown:
             return self._reply(r, None, "Área desconhecida: informe area_ha na safra ou no talhão.")
+
+    def _dispatch_adaptive(self, r: Routed, farm_id: int | None) -> dict:
+        if farm_id is None:
+            return self._reply(r, None, "Para responder sobre sua fazenda, selecione-a "
+                                        "(farm_id).")
+        try:
+            res = self.adaptive.personalized_intelligence(farm_id, r.season)
+        except FarmNotFound:
+            return self._reply(r, None, f"Fazenda (farm_id={farm_id}) não encontrada.")
+        except (KeyError, MunicipalityNotInRegion):
+            return self._reply(r, None, "Município da fazenda fora da região do modelo.")
+
+        adj, conf = res["farm_adjustment"], res["confidence_score"]
+        n = adj["n_cycles"]
+        if r.intent == Intent.ABOVE_AVERAGE:
+            if n == 0:
+                answer = ("Ainda não há safras registradas — não dá para dizer se sua "
+                          "fazenda produz acima da média. Registre colheitas.")
+            else:
+                d = "acima" if adj["observed_bias_pct"] >= 0 else "abaixo"
+                answer = (f"Com base em {n} safra(s), sua fazenda produz cerca de "
+                          f"{abs(adj['observed_bias_pct'])}% {d} da média regional "
+                          f"(confiança {conf:.0%}).")
+        elif r.intent == Intent.LEARNED:
+            answer = (f"O FADA usou {n} safra(s) reais desta fazenda. Nível de adaptação: "
+                      f"{res['adaptation_level']} (confiança {conf:.0%}).")
+        elif r.intent == Intent.RELIABILITY:
+            answer = (f"A confiabilidade da personalização é {conf:.0%} (adaptação "
+                      f"{res['adaptation_level']}, {n} safras). Quanto mais safras "
+                      f"consistentes, maior — e a incerteza climática nunca é mascarada.")
+        else:  # REGIONAL_VS_PERSONALIZED
+            rp = res["regional_prediction"]["point_sc_ha"]
+            pp = res["personalized_prediction"]["point_sc_ha"]
+            answer = (f"Previsão regional: {rp} sc/ha. Personalizada para sua fazenda: "
+                      f"{pp} sc/ha ({adj['applied_pct']:+}% após encolhimento por confiança).")
+        return self._reply(r, res, answer)
 
     def _dispatch(self, r: Routed) -> dict:
         if r.intent == Intent.OPTIMIZATION:

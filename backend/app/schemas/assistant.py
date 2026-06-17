@@ -18,6 +18,9 @@ class AssistantRequest(BaseModel):
     price_per_bag: float | None = Field(
         None, description="Preço da saca (R$/sc) para perguntas de break-even."
     )
+    farm_id: int | None = Field(
+        None, description="Fazenda de contexto, para perguntas de personalização."
+    )
 
 
 class AssistantResponse(BaseModel):

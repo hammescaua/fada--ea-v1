@@ -5,6 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.domain.adaptive import FarmPerformanceProfile
 from app.domain.catalog import Product, ProductCategory
 from app.domain.farm import (
     AgriculturalEvent,
@@ -19,6 +20,7 @@ from app.infra.models import (
     AgriculturalEventORM,
     CropCycleORM,
     FarmORM,
+    FarmPerformanceProfileORM,
     FieldORM,
     ProductORM,
     YieldObservationORM,
@@ -133,6 +135,15 @@ class FarmRepository:
         o = self.s.get(CropCycleORM, cycle_id)
         return _field(self.s.get(FieldORM, o.field_id)) if o else None
 
+    def list_cycles_by_farm(self, farm_id: int) -> list[CropCycle]:
+        stmt = (
+            select(CropCycleORM)
+            .join(FieldORM, CropCycleORM.field_id == FieldORM.id)
+            .where(FieldORM.farm_id == farm_id)
+            .order_by(CropCycleORM.harvest_year)
+        )
+        return [_cycle(o) for o in self.s.scalars(stmt)]
+
     def add_observation(self, obs: YieldObservation) -> YieldObservation:
         if self.s.get(CropCycleORM, obs.crop_cycle_id) is None:
             raise LookupError(f"CropCycle {obs.crop_cycle_id} inexistente")
@@ -193,3 +204,48 @@ class ProductRepository:
 
     def list_products(self) -> list[Product]:
         return [_product(o) for o in self.s.scalars(select(ProductORM).order_by(ProductORM.id))]
+
+
+def _profile(o: FarmPerformanceProfileORM) -> FarmPerformanceProfile:
+    return FarmPerformanceProfile(
+        id=o.id, farm_id=o.farm_id, number_of_cycles=o.number_of_cycles,
+        mean_relative_residual=o.mean_relative_residual,
+        mean_residual_sc_ha=o.mean_residual_sc_ha,
+        median_residual_sc_ha=o.median_residual_sc_ha,
+        variance_relative=o.variance_relative, last_updated=o.last_updated,
+    )
+
+
+class AdaptiveRepository:
+    """Persistência da memória de desempenho (um perfil por fazenda)."""
+
+    def __init__(self, session: Session) -> None:
+        self.s = session
+
+    def get_profile(self, farm_id: int) -> FarmPerformanceProfile | None:
+        o = self.s.scalar(
+            select(FarmPerformanceProfileORM).where(
+                FarmPerformanceProfileORM.farm_id == farm_id
+            )
+        )
+        return _profile(o) if o else None
+
+    def upsert_profile(self, p: FarmPerformanceProfile) -> FarmPerformanceProfile:
+        if self.s.get(FarmORM, p.farm_id) is None:
+            raise LookupError(f"Farm {p.farm_id} inexistente")
+        o = self.s.scalar(
+            select(FarmPerformanceProfileORM).where(
+                FarmPerformanceProfileORM.farm_id == p.farm_id
+            )
+        )
+        if o is None:
+            o = FarmPerformanceProfileORM(farm_id=p.farm_id)
+            self.s.add(o)
+        o.number_of_cycles = p.number_of_cycles
+        o.mean_relative_residual = p.mean_relative_residual
+        o.mean_residual_sc_ha = p.mean_residual_sc_ha
+        o.median_residual_sc_ha = p.median_residual_sc_ha
+        o.variance_relative = p.variance_relative
+        self.s.commit()
+        self.s.refresh(o)
+        return _profile(o)

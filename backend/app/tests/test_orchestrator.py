@@ -65,3 +65,25 @@ def test_break_even_intent():
     assert ROUTER.route(
         "Qual produtividade preciso para empatar?", None
     ).intent == Intent.BREAK_EVEN
+
+
+def test_above_average_intent():
+    assert ROUTER.route(
+        "Minha fazenda costuma produzir acima da média?", None
+    ).intent == Intent.ABOVE_AVERAGE
+
+
+def test_learned_intent():
+    assert ROUTER.route(
+        "Quanto o FADA já aprendeu sobre minha área?", None
+    ).intent == Intent.LEARNED
+
+
+def test_reliability_intent():
+    assert ROUTER.route("Quão confiável é essa personalização?", None).intent == Intent.RELIABILITY
+
+
+def test_regional_vs_personalized_intent():
+    assert ROUTER.route(
+        "Qual a diferença entre a previsão regional e a personalizada?", None
+    ).intent == Intent.REGIONAL_VS_PERSONALIZED
