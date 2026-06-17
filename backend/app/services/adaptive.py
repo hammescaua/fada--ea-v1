@@ -7,41 +7,25 @@ o encolhimento para personalizar uma predição regional, preservando a incertez
 
 from __future__ import annotations
 
-import csv
 from dataclasses import dataclass
-from functools import lru_cache
 
-from app.core.config import settings
 from app.domain.adaptive import (
     FarmPerformanceProfile,
     ShrinkagePrior,
     compute_profile_stats,
     personalize,
 )
-from app.domain.features import SOYBEAN_FEATURE_NAMES
 from app.domain.farm import Season
-from app.domain.units import kg_per_ha_to_bags_per_ha
 from app.domain.yield_estimation import RegionalYieldModel
 from app.infra.repositories import AdaptiveRepository, FarmRepository
+from app.services.regional_fitted import features_lookup, regional_fitted_sc_ha
 
-FEATURES_PATH = settings.data_dir / "features" / "soybean_tres_passos.csv"
+# Alias retrocompatível (usado por pipelines/example_adaptive).
+_features_lookup = features_lookup
 
 
 class FarmNotFound(Exception):
     pass
-
-
-@lru_cache
-def _features_lookup() -> dict[tuple[int, int], dict[str, float]]:
-    """{(municipio, ano_colheita): features} para computar o fitted regional do ano."""
-    out: dict[tuple[int, int], dict[str, float]] = {}
-    if not FEATURES_PATH.exists():
-        return out
-    with open(FEATURES_PATH, newline="") as fh:
-        for row in csv.DictReader(fh):
-            key = (int(row["municipality_code"]), int(row["harvest_year"]))
-            out[key] = {f: float(row[f]) for f in SOYBEAN_FEATURE_NAMES}
-    return out
 
 
 @dataclass
@@ -52,19 +36,8 @@ class AdaptiveService:
     prior: ShrinkagePrior = ShrinkagePrior()
 
     def _fitted_sc_ha(self, municipality_code: int, harvest_year: int) -> float:
-        """Expectativa regional sob o clima REAL do ano (clima-condicionada).
-
-        Usa as features reais do município-ano; se ausentes, cai na normal
-        climatológica (fallback).
-        """
-        feats = _features_lookup().get((municipality_code, harvest_year))
-        if feats is not None:
-            kg = self.model.predict_kg_ha({**feats, "harvest_year": harvest_year})
-            return kg_per_ha_to_bags_per_ha(kg)
-        try:
-            return self.model.estimate(municipality_code, harvest_year).point_sc_ha
-        except KeyError:
-            return 0.0
+        """Expectativa regional sob o clima REAL do ano (compartilhada — ver regional_fitted)."""
+        return regional_fitted_sc_ha(self.model, municipality_code, harvest_year)
 
     def residual_history(self, farm_id: int) -> list[dict]:
         farm = self.farms.get_farm(farm_id)
