@@ -66,6 +66,8 @@ class CropCycle:
     actual_planting_date: date | None = None
     harvest_date: date | None = None
     actual_yield_sc_ha: float | None = None
+    target_yield_sc_ha: float | None = None       # plano: produtividade alvo
+    expected_price_per_bag: float | None = None    # plano: preço esperado (R$/sc)
     notes: str | None = None
     id: int | None = None
     created_at: datetime | None = None
@@ -75,6 +77,10 @@ class CropCycle:
             raise ValueError("CropCycle.area_ha deve ser positivo")
         if self.actual_yield_sc_ha is not None and self.actual_yield_sc_ha < 0:
             raise ValueError("actual_yield_sc_ha não pode ser negativo")
+        if self.target_yield_sc_ha is not None and self.target_yield_sc_ha < 0:
+            raise ValueError("target_yield_sc_ha não pode ser negativo")
+        if self.expected_price_per_bag is not None and self.expected_price_per_bag <= 0:
+            raise ValueError("expected_price_per_bag deve ser positivo")
         if (
             self.actual_planting_date
             and self.harvest_date

@@ -114,3 +114,17 @@ def test_model_reliability_not_confused_with_farm_reliability():
     assert ROUTER.route("Quão confiável é essa personalização?", None).intent == \
         Intent.RELIABILITY
     assert ROUTER.route("Quão confiável é o modelo?", None).intent == Intent.MODEL_RELIABILITY
+
+
+def test_over_budget_intent():
+    assert ROUTER.route("Estou gastando acima do planejado?", None).intent == \
+        Intent.OVER_BUDGET
+
+
+def test_remaining_budget_intent():
+    assert ROUTER.route("Quanto ainda falta investir?", None).intent == \
+        Intent.REMAINING_BUDGET
+
+
+def test_following_plan_intent():
+    assert ROUTER.route("Estou seguindo meu plano?", None).intent == Intent.FOLLOWING_PLAN

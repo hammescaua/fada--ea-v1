@@ -18,6 +18,8 @@ from enum import Enum
 
 from app.services.adaptive import AdaptiveService, FarmNotFound
 from app.services.cost import AreaUnknown, CostService, CycleNotFound
+from app.services.planning import CycleNotFound as PlanCycleNotFound
+from app.services.planning import PlanningService
 from app.services.planting_date import PlantingDateService
 from app.services.regional_intelligence import (
     MunicipalityNotInRegion,
@@ -48,6 +50,9 @@ class Intent(str, Enum):
     INTERVALS_CALIBRATED = "intervals_calibrated"
     BIAS_DIRECTION = "bias_direction"
     PERSONALIZED_BETTER = "personalized_better"
+    OVER_BUDGET = "over_budget"
+    REMAINING_BUDGET = "remaining_budget"
+    FOLLOWING_PLAN = "following_plan"
     UNKNOWN = "unknown"
 
 
@@ -60,6 +65,9 @@ ADAPTIVE_INTENTS = frozenset(
 CALIBRATION_INTENTS = frozenset(
     {Intent.MODEL_RELIABILITY, Intent.INTERVALS_CALIBRATED, Intent.BIAS_DIRECTION,
      Intent.PERSONALIZED_BETTER}
+)
+PLANNING_INTENTS = frozenset(
+    {Intent.OVER_BUDGET, Intent.REMAINING_BUDGET, Intent.FOLLOWING_PLAN}
 )
 
 
@@ -141,6 +149,16 @@ class DeterministicRouter:
         if re.search(r"acima\s+da\s+media|abaixo\s+da\s+media|costuma\s+produz", n):
             return Routed(Intent.ABOVE_AVERAGE, muni, season, planting)
 
+        # Intenções de orçamento/plano (antes de custo: "quanto/gastando" são ambíguos).
+        if re.search(r"acima\s+do\s+(planejado|orcamento)|dentro\s+do\s+orcamento|"
+                     r"estour|acima\s+do\s+plano|gastando\s+(mais|acima)", n):
+            return Routed(Intent.OVER_BUDGET, muni, season, planting)
+        if re.search(r"falta\s+investir|ainda\s+falta|quanto\s+falta", n):
+            return Routed(Intent.REMAINING_BUDGET, muni, season, planting)
+        if re.search(r"seguindo\s+(o\s+|meu\s+)?plano|de\s+acordo\s+com\s+o\s+plano|"
+                     r"sigo\s+o\s+plano", n):
+            return Routed(Intent.FOLLOWING_PLAN, muni, season, planting)
+
         # Intenções de custo têm prioridade (palavras como "quanto" são ambíguas).
         if re.search(r"empatar|break.?even|empate", n):
             intent = Intent.BREAK_EVEN
@@ -167,6 +185,7 @@ class Orchestrator:
     planting: PlantingDateService
     cost: CostService
     adaptive: AdaptiveService
+    planning: PlanningService
     router: DeterministicRouter
     calibration_report: dict | None = None
 
@@ -179,6 +198,8 @@ class Orchestrator:
 
         if r.intent in COST_INTENTS:
             return self._dispatch_cost(r, ctx_crop_cycle_id, ctx_price_per_bag)
+        if r.intent in PLANNING_INTENTS:
+            return self._dispatch_planning(r, ctx_crop_cycle_id)
         if r.intent in ADAPTIVE_INTENTS:
             return self._dispatch_adaptive(r, ctx_farm_id)
         if r.intent in CALIBRATION_INTENTS:
@@ -227,6 +248,32 @@ class Orchestrator:
             return self._reply(r, None, f"Safra (crop_cycle_id={cycle_id}) não encontrada.")
         except AreaUnknown:
             return self._reply(r, None, "Área desconhecida: informe area_ha na safra ou no talhão.")
+
+    def _dispatch_planning(self, r: Routed, cycle_id: int | None) -> dict:
+        if cycle_id is None:
+            return self._reply(r, None, "Para responder sobre o orçamento, selecione a "
+                                        "safra (crop_cycle_id).")
+        try:
+            pva = self.planning.plan_vs_actual(cycle_id)
+        except PlanCycleNotFound:
+            return self._reply(r, None, f"Safra (crop_cycle_id={cycle_id}) não encontrada.")
+        if pva["planned_total_cost"] == 0:
+            return self._reply(r, pva, "Não há orçamento planejado para esta safra. "
+                                       "Cadastre operações planejadas para comparar.")
+        if r.intent == Intent.OVER_BUDGET:
+            status = "ACIMA do" if pva["over_budget"] else "DENTRO do"
+            answer = (f"Você está {status} planejado: R$ {pva['actual_total_cost']:.2f} de "
+                      f"R$ {pva['planned_total_cost']:.2f} ({pva['pct_budget_spent']}%).")
+        elif r.intent == Intent.REMAINING_BUDGET:
+            answer = (f"Faltam R$ {pva['remaining_budget']:.2f} do orçamento planejado "
+                      f"(gasto: R$ {pva['actual_total_cost']:.2f} de "
+                      f"R$ {pva['planned_total_cost']:.2f}).")
+        else:  # FOLLOWING_PLAN
+            answer = (f"Aplicações: {pva['actual_applications']} de "
+                      f"{pva['planned_applications']} planejadas; custo em "
+                      f"{pva['pct_budget_spent']}% do orçamento. "
+                      + ("Acima do planejado." if pva["over_budget"] else "Dentro do plano."))
+        return self._reply(r, pva, answer)
 
     def _dispatch_calibration(self, r: Routed) -> dict:
         rep = self.calibration_report

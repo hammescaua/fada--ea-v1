@@ -10,18 +10,22 @@ from app.domain.catalog import Product, ProductCategory
 from app.domain.farm import (
     AgriculturalEvent,
     CropCycle,
+    EventPreset,
     EventType,
     Farm,
     Field,
     Season,
     YieldObservation,
 )
+from app.domain.planning import PlannedEvent
 from app.infra.models import (
     AgriculturalEventORM,
     CropCycleORM,
+    EventPresetORM,
     FarmORM,
     FarmPerformanceProfileORM,
     FieldORM,
+    PlannedEventORM,
     ProductORM,
     YieldObservationORM,
 )
@@ -45,6 +49,8 @@ def _cycle(o: CropCycleORM) -> CropCycle:
         planned_planting_date=o.planned_planting_date,
         actual_planting_date=o.actual_planting_date,
         harvest_date=o.harvest_date, actual_yield_sc_ha=o.actual_yield_sc_ha,
+        target_yield_sc_ha=o.target_yield_sc_ha,
+        expected_price_per_bag=o.expected_price_per_bag,
         notes=o.notes, created_at=o.created_at,
     )
 
@@ -115,7 +121,9 @@ class FarmRepository:
             harvest_year=c.season.harvest_year, area_ha=c.area_ha, cultivar=c.cultivar,
             planned_planting_date=c.planned_planting_date,
             actual_planting_date=c.actual_planting_date, harvest_date=c.harvest_date,
-            actual_yield_sc_ha=c.actual_yield_sc_ha, notes=c.notes,
+            actual_yield_sc_ha=c.actual_yield_sc_ha,
+            target_yield_sc_ha=c.target_yield_sc_ha,
+            expected_price_per_bag=c.expected_price_per_bag, notes=c.notes,
         )
         return _cycle(self._save(o))
 
@@ -204,6 +212,76 @@ class ProductRepository:
 
     def list_products(self) -> list[Product]:
         return [_product(o) for o in self.s.scalars(select(ProductORM).order_by(ProductORM.id))]
+
+
+def _planned(o: PlannedEventORM) -> PlannedEvent:
+    return PlannedEvent(
+        id=o.id, crop_cycle_id=o.crop_cycle_id, event_type=EventType(o.event_type),
+        planned_date=o.planned_date, product_name=o.product_name, quantity=o.quantity,
+        unit=o.unit, expected_cost=o.expected_cost, notes=o.notes, created_at=o.created_at,
+    )
+
+
+def _preset(o: EventPresetORM) -> EventPreset:
+    return EventPreset(
+        id=o.id, name=o.name, event_type=EventType(o.event_type),
+        product_name=o.product_name, product_id=o.product_id,
+        default_quantity=o.default_quantity, unit=o.unit, default_cost=o.default_cost,
+        cost_is_per_hectare=o.cost_is_per_hectare, notes=o.notes, created_at=o.created_at,
+    )
+
+
+class PlanningRepository:
+    """Operações planejadas (PlannedEvent), filhas do CropCycle."""
+
+    def __init__(self, session: Session) -> None:
+        self.s = session
+
+    def add_planned(self, p: PlannedEvent) -> PlannedEvent:
+        if self.s.get(CropCycleORM, p.crop_cycle_id) is None:
+            raise LookupError(f"CropCycle {p.crop_cycle_id} inexistente")
+        o = PlannedEventORM(
+            crop_cycle_id=p.crop_cycle_id, event_type=p.event_type.value,
+            planned_date=p.planned_date, product_name=p.product_name, quantity=p.quantity,
+            unit=p.unit, expected_cost=p.expected_cost, notes=p.notes,
+        )
+        self.s.add(o)
+        self.s.commit()
+        self.s.refresh(o)
+        return _planned(o)
+
+    def list_by_cycle(self, cycle_id: int) -> list[PlannedEvent]:
+        stmt = (
+            select(PlannedEventORM)
+            .where(PlannedEventORM.crop_cycle_id == cycle_id)
+            .order_by(PlannedEventORM.planned_date, PlannedEventORM.id)
+        )
+        return [_planned(o) for o in self.s.scalars(stmt)]
+
+
+class PresetRepository:
+    def __init__(self, session: Session) -> None:
+        self.s = session
+
+    def add_preset(self, p: EventPreset) -> EventPreset:
+        o = EventPresetORM(
+            name=p.name, event_type=p.event_type.value, product_name=p.product_name,
+            product_id=p.product_id, default_quantity=p.default_quantity, unit=p.unit,
+            default_cost=p.default_cost, cost_is_per_hectare=p.cost_is_per_hectare,
+            notes=p.notes,
+        )
+        self.s.add(o)
+        self.s.commit()
+        self.s.refresh(o)
+        return _preset(o)
+
+    def list_presets(self) -> list[EventPreset]:
+        return [_preset(o) for o in self.s.scalars(
+            select(EventPresetORM).order_by(EventPresetORM.id))]
+
+    def get_preset(self, preset_id: int) -> EventPreset | None:
+        o = self.s.get(EventPresetORM, preset_id)
+        return _preset(o) if o else None
 
 
 def _profile(o: FarmPerformanceProfileORM) -> FarmPerformanceProfile:

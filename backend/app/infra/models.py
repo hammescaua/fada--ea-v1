@@ -54,6 +54,8 @@ class CropCycleORM(Base):
     actual_planting_date: Mapped[date | None]
     harvest_date: Mapped[date | None]
     actual_yield_sc_ha: Mapped[float | None]
+    target_yield_sc_ha: Mapped[float | None]
+    expected_price_per_bag: Mapped[float | None]
     notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -62,6 +64,9 @@ class CropCycleORM(Base):
         back_populates="cycle", cascade="all, delete-orphan"
     )
     events: Mapped[list[AgriculturalEventORM]] = relationship(
+        back_populates="cycle", cascade="all, delete-orphan"
+    )
+    planned_events: Mapped[list[PlannedEventORM]] = relationship(
         back_populates="cycle", cascade="all, delete-orphan"
     )
 
@@ -98,6 +103,39 @@ class AgriculturalEventORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     cycle: Mapped[CropCycleORM] = relationship(back_populates="events")
+
+
+class PlannedEventORM(Base):
+    __tablename__ = "planned_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    crop_cycle_id: Mapped[int] = mapped_column(ForeignKey("crop_cycles.id"))
+    event_type: Mapped[str] = mapped_column(String(40))
+    planned_date: Mapped[date]
+    product_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    quantity: Mapped[float | None]
+    unit: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    expected_cost: Mapped[float | None]
+    notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    cycle: Mapped[CropCycleORM] = relationship(back_populates="planned_events")
+
+
+class EventPresetORM(Base):
+    __tablename__ = "event_presets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    event_type: Mapped[str] = mapped_column(String(40))
+    product_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id"), nullable=True)
+    default_quantity: Mapped[float | None]
+    unit: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    default_cost: Mapped[float | None]
+    cost_is_per_hectare: Mapped[bool] = mapped_column(default=False)
+    notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class ProductORM(Base):

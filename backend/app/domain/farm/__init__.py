@@ -17,6 +17,7 @@ from app.domain.farm.events import (
     AgriculturalEvent,
     EventType,
 )
+from app.domain.farm.preset import EventPreset
 
 __all__ = [
     "Farm",
@@ -27,4 +28,5 @@ __all__ = [
     "AgriculturalEvent",
     "EventType",
     "APPLICATION_EVENTS",
+    "EventPreset",
 ]

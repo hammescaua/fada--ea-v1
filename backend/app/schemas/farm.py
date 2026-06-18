@@ -45,6 +45,8 @@ class CropCycleCreate(BaseModel):
     actual_planting_date: date | None = None
     harvest_date: date | None = None
     actual_yield_sc_ha: float | None = Field(None, ge=0)
+    target_yield_sc_ha: float | None = Field(None, ge=0)
+    expected_price_per_bag: float | None = Field(None, gt=0)
     notes: str | None = None
 
 
@@ -57,6 +59,8 @@ class CropCycleUpdate(BaseModel):
     actual_planting_date: date | None = None
     harvest_date: date | None = None
     actual_yield_sc_ha: float | None = Field(None, ge=0)
+    target_yield_sc_ha: float | None = Field(None, ge=0)
+    expected_price_per_bag: float | None = Field(None, gt=0)
     notes: str | None = None
 
 
@@ -72,6 +76,8 @@ class CropCycleOut(BaseModel):
     actual_planting_date: date | None = None
     harvest_date: date | None = None
     actual_yield_sc_ha: float | None = None
+    target_yield_sc_ha: float | None = None
+    expected_price_per_bag: float | None = None
     notes: str | None = None
     created_at: datetime | None = None
 

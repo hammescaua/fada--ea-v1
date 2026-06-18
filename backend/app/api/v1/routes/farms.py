@@ -33,7 +33,9 @@ def _cycle_out(c) -> CropCycleOut:
         harvest_year=c.season.harvest_year, area_ha=c.area_ha, cultivar=c.cultivar,
         planned_planting_date=c.planned_planting_date,
         actual_planting_date=c.actual_planting_date, harvest_date=c.harvest_date,
-        actual_yield_sc_ha=c.actual_yield_sc_ha, notes=c.notes, created_at=c.created_at,
+        actual_yield_sc_ha=c.actual_yield_sc_ha, target_yield_sc_ha=c.target_yield_sc_ha,
+        expected_price_per_bag=c.expected_price_per_bag,
+        notes=c.notes, created_at=c.created_at,
     )
 
 

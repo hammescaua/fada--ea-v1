@@ -10,11 +10,17 @@ from app.api.v1.routes.regional_intelligence import _model
 from app.engine import build_explainer
 from app.engine.orchestrator import DeterministicRouter, Orchestrator
 from app.infra.db import get_session
-from app.infra.repositories import AdaptiveRepository, EventRepository, FarmRepository
+from app.infra.repositories import (
+    AdaptiveRepository,
+    EventRepository,
+    FarmRepository,
+    PlanningRepository,
+)
 from app.schemas.assistant import AssistantRequest, AssistantResponse
 from app.services.adaptive import AdaptiveService
 from app.services.calibration import CalibrationUnavailable, load_calibration_report
 from app.services.cost import CostService
+from app.services.planning import PlanningService
 from app.services.regional_intelligence import RegionalIntelligenceService
 
 router = APIRouter()
@@ -38,6 +44,10 @@ def get_orchestrator(session: Session = Depends(get_session)) -> Orchestrator:
         cost=CostService(farms=farms, events=EventRepository(session), model=model),
         adaptive=AdaptiveService(
             farms=farms, adaptive=AdaptiveRepository(session), model=model
+        ),
+        planning=PlanningService(
+            farms=farms, planning=PlanningRepository(session),
+            events=EventRepository(session),
         ),
         router=DeterministicRouter(known_municipalities=names),
         calibration_report=calib,

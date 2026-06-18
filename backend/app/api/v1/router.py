@@ -6,11 +6,13 @@ from app.api.v1.routes import (
     adaptive,
     assistant,
     calibration,
+    capture,
     cost,
     farms,
     health,
     insights,
     operations,
+    planning,
     planting_date,
     regional_intelligence,
 )
@@ -21,6 +23,8 @@ api_router.include_router(regional_intelligence.router, tags=["regional-intellig
 api_router.include_router(planting_date.router, tags=["planting-date"])
 api_router.include_router(farms.router, tags=["ground-truth"])
 api_router.include_router(operations.router, tags=["operations"])
+api_router.include_router(capture.router, tags=["quick-capture"])
+api_router.include_router(planning.router, tags=["planning"])
 api_router.include_router(cost.router, tags=["cost"])
 api_router.include_router(adaptive.router, tags=["adaptive"])
 api_router.include_router(calibration.router, tags=["calibration"])
