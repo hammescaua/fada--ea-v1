@@ -10,6 +10,7 @@ const links = [
   { href: "/planting/optimize", label: "Otimizar Janela" },
   { href: "/farms", label: "Captura de Dados" },
   { href: "/safra", label: "Safra" },
+  { href: "/planejamento", label: "Plano & Orçamento" },
   { href: "/financeiro", label: "Financeiro" },
   { href: "/insights", label: "Inteligência por Talhão" },
   { href: "/adaptive", label: "Inteligência Adaptativa" },

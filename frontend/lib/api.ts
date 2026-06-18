@@ -573,11 +573,99 @@ export interface Insights {
 }
 
 // ---------------------------------------------------------------------------
+// In-season: planning, budget, agenda, quick capture
+// ---------------------------------------------------------------------------
+
+export interface PlannedEvent {
+  id: number;
+  crop_cycle_id: number;
+  event_type: EventType;
+  planned_date: string;
+  product_name: string | null;
+  quantity: number | null;
+  unit: string | null;
+  expected_cost: number | null;
+  notes: string | null;
+}
+
+export interface CreatePlannedEventRequest {
+  event_type: EventType;
+  planned_date: string;
+  product_name?: string;
+  quantity?: number;
+  unit?: string;
+  expected_cost?: number;
+  notes?: string;
+}
+
+export interface PlanVsActual {
+  planned_total_cost: number;
+  actual_total_cost: number;
+  cost_variance: number;
+  cost_variance_pct: number | null;
+  pct_budget_spent: number | null;
+  remaining_budget: number;
+  over_budget: boolean;
+  area_ha: number | null;
+  planned_cost_per_ha: number | null;
+  actual_cost_per_ha: number | null;
+  planned_applications: number;
+  actual_applications: number;
+  expected_revenue: number | null;
+  expected_profit: number | null;
+  interpretation: string;
+}
+
+export interface AgendaItem {
+  planned_event_id: number | null;
+  event_type: string;
+  planned_date: string;
+  product_name: string | null;
+  expected_cost: number | null;
+  status: string;
+}
+
+export interface Agenda {
+  crop_cycle_id: number;
+  items: AgendaItem[];
+  summary: Record<string, number>;
+}
+
+export interface QuickLogRequest {
+  crop_cycle_ids: number[];
+  event_date: string;
+  preset_id?: number;
+  event_type?: EventType;
+  product_name?: string;
+  quantity?: number;
+  unit?: string;
+  cost?: number;
+  notes?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Endpoint functions
 // ---------------------------------------------------------------------------
 
 export const api = {
   getMunicipalities: () => get<Municipality[]>("/municipalities"),
+
+  getPlanVsActual: (cycleId: number) =>
+    get<PlanVsActual>(`/crop-cycles/${cycleId}/plan-vs-actual`),
+
+  getAgenda: (cycleId: number) => get<Agenda>(`/crop-cycles/${cycleId}/agenda`),
+
+  getPlannedEvents: (cycleId: number) =>
+    get<PlannedEvent[]>(`/crop-cycles/${cycleId}/planned-events`),
+
+  createPlannedEvent: (cycleId: number, body: CreatePlannedEventRequest) =>
+    post<CreatePlannedEventRequest, PlannedEvent>(
+      `/crop-cycles/${cycleId}/planned-events`,
+      body
+    ),
+
+  quickLog: (body: QuickLogRequest) =>
+    post<QuickLogRequest, { created: AgriculturalEvent[] }>("/quick-log", body),
 
   getFieldAnalytics: (farmId: number) =>
     get<FieldAnalytics>(`/farms/${farmId}/field-analytics`),
