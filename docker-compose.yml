@@ -16,9 +16,19 @@ services:
   api:
     build: ./backend
     env_file: ./backend/.env
+    environment:
+      # Libere a origem do frontend em produção (ex.: https://app.exemplo.com).
+      FADA_CORS_ORIGINS: ${FADA_CORS_ORIGINS:-*}
     ports: ["8000:8000"]
     depends_on: [db, redis]
     volumes: ["./backend:/app"]
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
 volumes:
   fada_pgdata:
