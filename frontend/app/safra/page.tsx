@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   api,
@@ -41,6 +42,15 @@ function SummaryRow({
   );
 }
 
+function HubRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">{value}</span>
+    </div>
+  );
+}
+
 export default function SafraPage() {
   const qc = useQueryClient();
   const ctx = useFarmContext();
@@ -58,6 +68,26 @@ export default function SafraPage() {
     queryFn: () => api.getCropCycleEvents(cycleId as number),
     enabled: cycleId !== null,
   });
+
+  // ---- hub "Minha Lavoura": plano, custos e atenção numa só página ----
+  const planQuery = useQuery({
+    queryKey: ["plan-vs-actual", cycleId],
+    queryFn: () => api.getPlanVsActual(cycleId as number),
+    enabled: cycleId !== null,
+  });
+  const costQuery = useQuery({
+    queryKey: ["crop-cycle-cost", cycleId],
+    queryFn: () => api.getCropCycleCost(cycleId as number),
+    enabled: cycleId !== null,
+  });
+  const decisionsQuery = useQuery({
+    queryKey: ["decisions", ctx.farmId],
+    queryFn: () => api.getDecisions(ctx.farmId as number),
+    enabled: ctx.farmId !== null,
+  });
+  const fieldAttention = decisionsQuery.data?.fields.find(
+    (f) => f.field_id === cycleQuery.data?.field_id
+  );
 
   // ---- edit form state, seeded from the loaded cycle ----
   const [edit, setEdit] = React.useState({
@@ -147,8 +177,8 @@ export default function SafraPage() {
   return (
     <div>
       <PageHeader
-        title="Safra — Gêmeo Digital"
-        description="Acompanhe um ciclo de cultivo ao longo da temporada: dados da safra, linha do tempo de eventos agrícolas e registro de manejo."
+        title="Minha Lavoura"
+        description="Tudo sobre a safra selecionada numa página: resumo, plano e orçamento, custos, atenção e a linha do tempo das operações."
       />
 
       {cycleId === null ? (
@@ -219,6 +249,94 @@ export default function SafraPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* HUB: plano, custos e atenção desta safra numa só página */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Plano & Orçamento</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm">
+                {planQuery.data && planQuery.data.planned_total_cost > 0 ? (
+                  <>
+                    <HubRow label="Gasto" value={formatBRL(planQuery.data.actual_total_cost)} />
+                    <HubRow label="Planejado" value={formatBRL(planQuery.data.planned_total_cost)} />
+                    <HubRow label="Falta investir" value={formatBRL(planQuery.data.remaining_budget)} />
+                    <HubRow
+                      label="Aplicações"
+                      value={`${planQuery.data.actual_applications}/${planQuery.data.planned_applications}`}
+                    />
+                    <Link href="/planejamento" className="mt-2 inline-block text-xs text-brand-700 underline">
+                      Ver plano completo →
+                    </Link>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Sem plano. Defina operações em <span className="font-medium">Planejar</span>.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Custos</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm">
+                {costQuery.data ? (
+                  <>
+                    <HubRow label="Total" value={formatBRL(costQuery.data.total_cost)} />
+                    <HubRow label="Por hectare" value={formatBRL(costQuery.data.cost_per_hectare)} />
+                    <HubRow
+                      label="Por saca"
+                      value={
+                        costQuery.data.cost_per_bag != null
+                          ? formatBRL(costQuery.data.cost_per_bag)
+                          : "—"
+                      }
+                    />
+                    <HubRow label="Aplicações" value={`${costQuery.data.n_applications}`} />
+                    <Link href="/financeiro" className="mt-2 inline-block text-xs text-brand-700 underline">
+                      Lucro e cenários →
+                    </Link>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Sem custos registrados.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Atenção</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm">
+                {!fieldAttention ? (
+                  <p className="text-xs text-muted-foreground">
+                    Selecione a fazenda para ver alertas.
+                  </p>
+                ) : fieldAttention.attention_level === "saudável" ? (
+                  <p className="text-muted-foreground">Sem alertas neste talhão.</p>
+                ) : (
+                  <div className="space-y-2">
+                    <Badge
+                      variant={fieldAttention.attention_level === "alta" ? "danger" : "warning"}
+                    >
+                      atenção {fieldAttention.attention_level}
+                    </Badge>
+                    <ul className="list-inside list-disc text-muted-foreground">
+                      {fieldAttention.flags.map((fl, i) => (
+                        <li key={i}>{fl.title}</li>
+                      ))}
+                    </ul>
+                    <Link href="/decisoes" className="inline-block text-xs text-brand-700 underline">
+                      Detalhes →
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           {/* EDIT / PATCH */}
           {cycleQuery.data && (
