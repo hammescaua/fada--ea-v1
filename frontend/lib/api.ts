@@ -1,7 +1,20 @@
 // Typed API client for the FADA backend.
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/**
+ * Normaliza a base da API para evitar pegadinhas comuns de configuração:
+ * - remove barra(s) no final;
+ * - remove um "/api/v1" colocado por engano no fim (o cliente já adiciona).
+ */
+function normalizeBase(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/api\/v1\/?$/, "");
+}
+
+export const API_BASE = normalizeBase(
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+);
 
 export const API_V1 = `${API_BASE}/api/v1`;
 
