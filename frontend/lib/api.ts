@@ -170,6 +170,23 @@ export interface PlantingWindowOptimizationResponse {
 export interface AssistantRequest {
   message: string;
   municipality?: string | null;
+  // O backend já aceita estes — o contexto global (fazenda/safra) os preenche,
+  // habilitando perguntas de custo/orçamento/decisão/personalização.
+  farm_id?: number | null;
+  crop_cycle_id?: number | null;
+  price_per_bag?: number | null;
+}
+
+export interface CropCycleListItem {
+  id: number;
+  field_id: number;
+  field_name: string;
+  crop: string;
+  season: string;
+  harvest_year: number;
+  area_ha: number | null;
+  target_yield_sc_ha: number | null;
+  has_actual_yield: boolean;
 }
 
 export interface AssistantResponse {
@@ -808,6 +825,9 @@ export const api = {
     post<CreateFarmRequest, Farm>("/farms", body),
 
   getFarms: () => get<Farm[]>("/farms"),
+
+  getFarmCropCycles: (farmId: number) =>
+    get<CropCycleListItem[]>(`/farms/${farmId}/crop-cycles`),
 
   createField: (farmId: number, body: CreateFieldRequest) =>
     post<CreateFieldRequest, Field>(`/farms/${farmId}/fields`, body),

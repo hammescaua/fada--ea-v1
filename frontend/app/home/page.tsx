@@ -8,10 +8,9 @@ import { PageHeader } from "@/components/page-header";
 import { ErrorBlock, LoadingBlock } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Stat } from "@/components/stat";
+import { useFarmContext } from "@/lib/context";
 import { formatBRL, formatNumber } from "@/lib/utils";
 
 function levelVariant(level: string): BadgeProps["variant"] {
@@ -30,20 +29,15 @@ const MORE_TOOLS = [
 ];
 
 export default function HomePage() {
-  const [farmId, setFarmId] = React.useState<number | null>(null);
+  const ctx = useFarmContext();
+  const farmId = ctx.farmId; // fazenda vem do contexto global (header)
   const queryClient = useQueryClient();
   const farmsQuery = useQuery({ queryKey: ["farms"], queryFn: api.getFarms });
 
-  React.useEffect(() => {
-    if (farmId === null && farmsQuery.data && farmsQuery.data.length > 0) {
-      setFarmId(farmsQuery.data[0].id);
-    }
-  }, [farmsQuery.data, farmId]);
-
   const seedDemo = useMutation({
     mutationFn: api.seedDemo,
-    onSuccess: (res) => {
-      setFarmId(res.farm_id);
+    onSuccess: () => {
+      // a barra de contexto seleciona a fazenda recém-criada automaticamente
       queryClient.invalidateQueries({ queryKey: ["farms"] });
     },
   });
@@ -96,22 +90,7 @@ export default function HomePage() {
             )}
           </CardContent>
         </Card>
-      ) : (
-        <div className="max-w-sm space-y-2">
-          <Label htmlFor="farm">Fazenda</Label>
-          <Select
-            id="farm"
-            value={farmId ?? ""}
-            onChange={(e) => setFarmId(Number(e.target.value))}
-          >
-            {farmsQuery.data!.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-      )}
+      ) : null}
 
       {/* Dashboard */}
       {farmId !== null && hasFarms && (

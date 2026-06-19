@@ -13,6 +13,7 @@ import {
   EVENT_TYPE_LABELS,
   eventStyle,
 } from "@/lib/events";
+import { useFarmContext } from "@/lib/context";
 import { PageHeader } from "@/components/page-header";
 import { ErrorBlock, LoadingBlock, Spinner } from "@/components/states";
 import { Button } from "@/components/ui/button";
@@ -42,9 +43,9 @@ function SummaryRow({
 
 export default function SafraPage() {
   const qc = useQueryClient();
-
-  const [cycleInput, setCycleInput] = React.useState("");
-  const [cycleId, setCycleId] = React.useState<number | null>(null);
+  const ctx = useFarmContext();
+  // Safra vem do contexto global (header) — sem digitar ID.
+  const cycleId = ctx.cropCycleId;
 
   const cycleQuery = useQuery<CropCycleDetail>({
     queryKey: ["crop-cycle", cycleId],
@@ -150,47 +151,11 @@ export default function SafraPage() {
         description="Acompanhe um ciclo de cultivo ao longo da temporada: dados da safra, linha do tempo de eventos agrícolas e registro de manejo."
       />
 
-      {/* LOAD CYCLE */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Carregar ciclo</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const id = Number(cycleInput);
-              if (!cycleInput || Number.isNaN(id)) return;
-              setCycleId(id);
-            }}
-            className="flex flex-col gap-3 sm:flex-row sm:items-end"
-          >
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="cycleId">ID do ciclo de cultivo</Label>
-              <Input
-                id="cycleId"
-                type="number"
-                min="1"
-                value={cycleInput}
-                onChange={(e) => setCycleInput(e.target.value)}
-                placeholder="Ex.: 1"
-              />
-            </div>
-            <Button type="submit" disabled={!cycleInput}>
-              Carregar
-            </Button>
-          </form>
-          <p className="text-xs text-muted-foreground">
-            Crie ciclos na página{" "}
-            <span className="font-medium">Captura de Dados</span> e use o ID
-            gerado aqui.
-          </p>
-        </CardContent>
-      </Card>
-
       {cycleId === null ? (
         <p className="text-sm text-muted-foreground">
-          Informe um ID de ciclo para começar.
+          Selecione a <span className="font-medium">Fazenda · Safra</span> no topo da
+          página para acompanhar a lavoura. Se ainda não tem dados, comece pela página{" "}
+          <span className="font-medium">Início</span>.
         </p>
       ) : (
         <div className="space-y-6">

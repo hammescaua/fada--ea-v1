@@ -7,6 +7,7 @@ import {
   type AssistantRequest,
   type AssistantResponse,
 } from "@/lib/api";
+import { useFarmContext } from "@/lib/context";
 import { PageHeader } from "@/components/page-header";
 import { MunicipalitySelect } from "@/components/municipality-select";
 import { ErrorBlock, Spinner } from "@/components/states";
@@ -22,6 +23,7 @@ interface ChatMessage {
 }
 
 export default function AssistantPage() {
+  const ctx = useFarmContext();
   const [municipality, setMunicipality] = React.useState("");
   const [message, setMessage] = React.useState("");
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -49,9 +51,13 @@ export default function AssistantPage() {
     const trimmed = message.trim();
     if (!trimmed || mutation.isPending) return;
     setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
+    // Contexto global (fazenda/safra) habilita perguntas de custo/orçamento/
+    // decisão/personalização. O backend já aceita estes campos.
     mutation.mutate({
       message: trimmed,
       municipality: municipality || null,
+      farm_id: ctx.farmId,
+      crop_cycle_id: ctx.cropCycleId,
     });
     setMessage("");
   };
@@ -60,8 +66,22 @@ export default function AssistantPage() {
     <div>
       <PageHeader
         title="Assistente FADA"
-        description="Faça perguntas em linguagem natural sobre produtividade, plantio e riscos da soja no RS."
+        description="Faça perguntas em linguagem natural sobre produtividade, plantio, custos e riscos da soja no RS."
       />
+
+      {ctx.farmId !== null && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          Respondendo sobre:{" "}
+          <span className="font-medium text-foreground">{ctx.farmName}</span>
+          {ctx.cropCycleLabel && (
+            <>
+              {" · "}
+              <span className="font-medium text-foreground">{ctx.cropCycleLabel}</span>
+            </>
+          )}
+          . Pergunte também sobre custos, orçamento e atenção dos talhões.
+        </p>
+      )}
 
       <div className="mb-4 max-w-xs space-y-2">
         <Label htmlFor="municipality">Município (contexto opcional)</Label>
