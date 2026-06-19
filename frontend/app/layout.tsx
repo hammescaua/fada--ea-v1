@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
-import { Nav } from "@/components/nav";
+import { BottomNav, Nav } from "@/components/nav";
 
 export const metadata: Metadata = {
   title: "FADA — Farm AI Decision Agent",
@@ -20,10 +20,11 @@ export default function RootLayout({
         <Providers>
           <div className="flex min-h-screen flex-col md:flex-row">
             <Nav />
-            <main className="flex-1 overflow-x-hidden px-5 py-8 md:px-10 md:py-10">
+            <main className="flex-1 overflow-x-hidden px-5 py-8 pb-24 md:px-10 md:py-10 md:pb-10">
               <div className="mx-auto w-full max-w-5xl">{children}</div>
             </main>
           </div>
+          <BottomNav />
         </Providers>
       </body>
     </html>

@@ -8,7 +8,10 @@ from app.api.v1.routes import (
     calibration,
     capture,
     cost,
+    dashboard,
     decisions,
+    demo,
+    export,
     farms,
     health,
     insights,
@@ -16,10 +19,12 @@ from app.api.v1.routes import (
     planning,
     planting_date,
     regional_intelligence,
+    system,
 )
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
+api_router.include_router(system.router, tags=["system"])
 api_router.include_router(regional_intelligence.router, tags=["regional-intelligence"])
 api_router.include_router(planting_date.router, tags=["planting-date"])
 api_router.include_router(farms.router, tags=["ground-truth"])
@@ -31,4 +36,7 @@ api_router.include_router(adaptive.router, tags=["adaptive"])
 api_router.include_router(calibration.router, tags=["calibration"])
 api_router.include_router(insights.router, tags=["insights"])
 api_router.include_router(decisions.router, tags=["decisions"])
+api_router.include_router(dashboard.router, tags=["dashboard"])
+api_router.include_router(demo.router, tags=["demo"])
+api_router.include_router(export.router, tags=["export"])
 api_router.include_router(assistant.router, tags=["assistant"])

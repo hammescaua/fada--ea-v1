@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{PROJECT_ROOT / 'data' / 'fada.db'}"
     redis_url: str = "redis://localhost:6379/0"
 
+    # CORS — origens permitidas (CSV em FADA_CORS_ORIGINS; "*" libera todas em dev).
+    cors_origins: str = "*"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
     # LLM (Decision Engine — orquestração/explicação/RAG). Ver ADR-0002.
     anthropic_api_key: str | None = None
     llm_orchestrator_model: str = "claude-opus-4-8"
