@@ -499,35 +499,46 @@ async function handle<T>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
 
+// Timeout padrão dos requests (evita spinner infinito se o backend pendurar).
+const TIMEOUT_MS = 15_000;
+
+async function request(path: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    return await fetch(`${API_V1}${path}`, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError("Tempo de resposta esgotado. Tente novamente.", 408);
+    }
+    throw err; // "Failed to fetch" etc. é tratado na UI (states.tsx)
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_V1}${path}`, {
-    headers: { Accept: "application/json" },
-  });
-  return handle<T>(res);
+  return handle<T>(await request(path, { headers: { Accept: "application/json" } }));
 }
 
 async function post<TBody, TResp>(path: string, body: TBody): Promise<TResp> {
-  const res = await fetch(`${API_V1}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  return handle<TResp>(res);
+  return handle<TResp>(
+    await request(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+    })
+  );
 }
 
 async function patch<TBody, TResp>(path: string, body: TBody): Promise<TResp> {
-  const res = await fetch(`${API_V1}${path}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  return handle<TResp>(res);
+  return handle<TResp>(
+    await request(path, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+    })
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -677,12 +688,63 @@ export interface Decisions {
   note: string;
 }
 
+// Platform: system status, dashboard, demo
+// ---------------------------------------------------------------------------
+
+export interface SystemStatus {
+  status: string;
+  version: string;
+  database: { status: string; url_scheme: string };
+  model: { status: string; path: string };
+  calibration_report: { present: boolean };
+  counts: Record<string, number>;
+}
+
+export interface FarmDashboard {
+  farm_id: number;
+  season: string | null;
+  n_fields: number;
+  attention: {
+    levels: Record<string, number>;
+    top: { field_name: string; attention_level: string; flags: AttentionFlag[] } | null;
+  };
+  budget: {
+    planned_total: number;
+    actual_total: number;
+    remaining: number;
+    pct_consumed: number | null;
+  };
+  agenda: {
+    overdue: number;
+    upcoming: number;
+    next_operation: { event_type: string; planned_date: string } | null;
+  };
+  insights: Insight[];
+}
+
+export interface DemoSeedResult {
+  farm_id: number;
+  farm_name: string;
+  n_fields: number;
+  n_cycles: number;
+  season: string;
+  message: string;
+}
+
 // ---------------------------------------------------------------------------
 // Endpoint functions
 // ---------------------------------------------------------------------------
 
 export const api = {
   getMunicipalities: () => get<Municipality[]>("/municipalities"),
+
+  getSystemStatus: () => get<SystemStatus>("/system/status"),
+
+  getDashboard: (farmId: number) => get<FarmDashboard>(`/farms/${farmId}/dashboard`),
+
+  seedDemo: () => post<Record<string, never>, DemoSeedResult>("/demo/seed", {}),
+
+  operationsCsvUrl: (farmId: number) => `${API_V1}/farms/${farmId}/operations.csv`,
 
   getDecisions: (farmId: number) => get<Decisions>(`/farms/${farmId}/decisions`),
 
