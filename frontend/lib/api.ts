@@ -1,7 +1,20 @@
 // Typed API client for the FADA backend.
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/**
+ * Normaliza a base da API para evitar pegadinhas comuns de configuração:
+ * - remove barra(s) no final;
+ * - remove um "/api/v1" colocado por engano no fim (o cliente já adiciona).
+ */
+function normalizeBase(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/api\/v1\/?$/, "");
+}
+
+export const API_BASE = normalizeBase(
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+);
 
 export const API_V1 = `${API_BASE}/api/v1`;
 
@@ -69,6 +82,8 @@ export interface RegionalIntelligenceResponse {
   climatic_risks: ClimaticRisk[];
   planting_window: PlantingWindow;
   explanation: string;
+  n_years: number;
+  reasoning: { n_years: number; method: string; interval_basis: string };
   data_sources: string[];
   disclaimer: string;
 }
@@ -157,6 +172,23 @@ export interface PlantingWindowOptimizationResponse {
 export interface AssistantRequest {
   message: string;
   municipality?: string | null;
+  // O backend já aceita estes — o contexto global (fazenda/safra) os preenche,
+  // habilitando perguntas de custo/orçamento/decisão/personalização.
+  farm_id?: number | null;
+  crop_cycle_id?: number | null;
+  price_per_bag?: number | null;
+}
+
+export interface CropCycleListItem {
+  id: number;
+  field_id: number;
+  field_name: string;
+  crop: string;
+  season: string;
+  harvest_year: number;
+  area_ha: number | null;
+  target_yield_sc_ha: number | null;
+  has_actual_yield: boolean;
 }
 
 export interface AssistantResponse {
@@ -276,6 +308,8 @@ export interface UpdateCropCycleRequest {
   actual_planting_date?: string;
   harvest_date?: string;
   actual_yield_sc_ha?: number;
+  target_yield_sc_ha?: number;
+  expected_price_per_bag?: number;
   notes?: string;
 }
 
@@ -654,6 +688,30 @@ export interface QuickLogRequest {
   notes?: string;
 }
 
+export interface EventPreset {
+  id: number;
+  name: string;
+  event_type: EventType;
+  product_name: string | null;
+  product_id: number | null;
+  default_quantity: number | null;
+  unit: string | null;
+  default_cost: number | null;
+  cost_is_per_hectare: boolean;
+  notes: string | null;
+}
+
+export interface CreateEventPresetRequest {
+  name: string;
+  event_type: EventType;
+  product_name?: string;
+  default_quantity?: number;
+  unit?: string;
+  default_cost?: number;
+  cost_is_per_hectare?: boolean;
+  notes?: string;
+}
+
 // Decision support
 // ---------------------------------------------------------------------------
 
@@ -765,6 +823,11 @@ export const api = {
   quickLog: (body: QuickLogRequest) =>
     post<QuickLogRequest, { created: AgriculturalEvent[] }>("/quick-log", body),
 
+  getEventPresets: () => get<EventPreset[]>("/event-presets"),
+
+  createEventPreset: (body: CreateEventPresetRequest) =>
+    post<CreateEventPresetRequest, EventPreset>("/event-presets", body),
+
   getFieldAnalytics: (farmId: number) =>
     get<FieldAnalytics>(`/farms/${farmId}/field-analytics`),
 
@@ -795,6 +858,9 @@ export const api = {
     post<CreateFarmRequest, Farm>("/farms", body),
 
   getFarms: () => get<Farm[]>("/farms"),
+
+  getFarmCropCycles: (farmId: number) =>
+    get<CropCycleListItem[]>(`/farms/${farmId}/crop-cycles`),
 
   createField: (farmId: number, body: CreateFieldRequest) =>
     post<CreateFieldRequest, Field>(`/farms/${farmId}/fields`, body),

@@ -1,42 +1,55 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const links = [
-  { href: "/home", label: "Início" },
-  { href: "/", label: "Inteligência Regional" },
-  { href: "/planting/simulate", label: "Simular Data de Plantio" },
-  { href: "/planting/optimize", label: "Otimizar Janela" },
-  { href: "/farms", label: "Captura de Dados" },
-  { href: "/safra", label: "Safra" },
-  { href: "/planejamento", label: "Plano & Orçamento" },
-  { href: "/financeiro", label: "Financeiro" },
-  { href: "/insights", label: "Inteligência por Talhão" },
-  { href: "/decisoes", label: "Decisões" },
-  { href: "/adaptive", label: "Inteligência Adaptativa" },
-  { href: "/calibration", label: "Calibração" },
-  { href: "/assistant", label: "Assistente" },
-  { href: "/system", label: "Sistema" },
-];
-
-// Destinos primários do dia a dia (bottom nav mobile).
+// Destinos primários — pensados no trabalho do agricultor, não na arquitetura.
 const primary = [
   { href: "/home", label: "Início" },
-  { href: "/planejamento", label: "Plano" },
-  { href: "/decisoes", label: "Decisões" },
-  { href: "/insights", label: "Talhões" },
+  { href: "/planejamento", label: "Planejar" },
+  { href: "/safra", label: "Minha Lavoura" },
+  { href: "/financeiro", label: "Financeiro" },
   { href: "/assistant", label: "Assistente" },
+];
+
+// Ferramentas avançadas — agrupadas e colapsadas (linguagem de produtor).
+const advanced = [
+  { href: "/", label: "Estimativa da Região" },
+  { href: "/planting/simulate", label: "Simular Data de Plantio" },
+  { href: "/planting/optimize", label: "Melhor Janela de Plantio" },
+  { href: "/insights", label: "Análise dos Talhões" },
+  { href: "/decisoes", label: "Onde Olhar Primeiro" },
+  { href: "/adaptive", label: "Personalização da Fazenda" },
+  { href: "/farms", label: "Captura de Dados" },
+];
+
+// Rodapé discreto — "sobre o modelo".
+const footer = [
+  { href: "/calibration", label: "Sobre o Modelo" },
+  { href: "/system", label: "Sistema" },
 ];
 
 function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
+function linkClass(active: boolean): string {
+  return cn(
+    "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+    active
+      ? "bg-brand-50 text-brand-700"
+      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+  );
+}
+
 /** Sidebar — desktop. */
 export function Nav() {
   const pathname = usePathname();
+  const advancedActive = advanced.some((l) => isActive(pathname, l.href));
+  const [open, setOpen] = React.useState(advancedActive);
+
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card md:flex md:h-screen">
       <div className="flex items-center gap-2 px-6 py-5">
@@ -45,24 +58,47 @@ export function Nav() {
         </div>
         <div className="leading-tight">
           <div className="text-base font-semibold">FADA</div>
-          <div className="text-xs text-muted-foreground">Farm AI Decision Agent</div>
+          <div className="text-xs text-muted-foreground">Decisão na lavoura</div>
         </div>
       </div>
-      <nav className="flex flex-col gap-1 overflow-y-auto px-3 pb-4">
-        {links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={cn(
-              "rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              isActive(pathname, link.href)
-                ? "bg-brand-50 text-brand-700"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
+
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pb-4">
+        {primary.map((link) => (
+          <Link key={link.href} href={link.href} className={linkClass(isActive(pathname, link.href))}>
             {link.label}
           </Link>
         ))}
+
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="mt-3 flex items-center justify-between rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted"
+        >
+          Ferramentas
+          <span aria-hidden>{open ? "▾" : "▸"}</span>
+        </button>
+        {open &&
+          advanced.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn("ml-2", linkClass(isActive(pathname, link.href)))}
+            >
+              {link.label}
+            </Link>
+          ))}
+
+        <div className="mt-auto flex flex-col gap-1 border-t border-border pt-3">
+          {footer.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn("text-xs", linkClass(isActive(pathname, link.href)))}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
       </nav>
     </aside>
   );
@@ -79,9 +115,7 @@ export function BottomNav() {
           href={link.href}
           className={cn(
             "flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium",
-            isActive(pathname, link.href)
-              ? "text-brand-700"
-              : "text-muted-foreground"
+            isActive(pathname, link.href) ? "text-brand-700" : "text-muted-foreground"
           )}
         >
           {link.label}

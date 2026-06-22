@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Stat } from "@/components/stat";
+import { useFarmContext } from "@/lib/context";
 import { EVENT_TYPES, EVENT_TYPE_LABELS } from "@/lib/events";
 import { formatBRL, formatNumber } from "@/lib/utils";
 
@@ -32,8 +33,8 @@ function typeLabel(t: string): string {
 }
 
 export default function PlanejamentoPage() {
-  const [cycleInput, setCycleInput] = React.useState("");
-  const [cycleId, setCycleId] = React.useState<number | null>(null);
+  const ctx = useFarmContext();
+  const cycleId = ctx.cropCycleId; // safra vem do contexto global (sem digitar ID)
   const queryClient = useQueryClient();
 
   const pvaQuery = useQuery<PlanVsActual>({
@@ -93,31 +94,12 @@ export default function PlanejamentoPage() {
         description="Acompanhe planejado x realizado e a agenda da safra. O plano é opcional — a captura funciona sem ele."
       />
 
-      <Card>
-        <CardContent className="pt-6">
-          <form
-            className="flex flex-wrap items-end gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const n = Number(cycleInput);
-              setCycleId(Number.isFinite(n) && n > 0 ? n : null);
-            }}
-          >
-            <div className="space-y-2">
-              <Label htmlFor="cycle">Safra (crop_cycle_id)</Label>
-              <Input
-                id="cycle"
-                type="number"
-                value={cycleInput}
-                onChange={(e) => setCycleInput(e.target.value)}
-                placeholder="ex.: 1"
-                className="w-40"
-              />
-            </div>
-            <Button type="submit">Carregar</Button>
-          </form>
-        </CardContent>
-      </Card>
+      {cycleId === null && (
+        <p className="text-sm text-muted-foreground">
+          Selecione a <span className="font-medium">Fazenda · Safra</span> no topo da
+          página para acompanhar o plano e o orçamento.
+        </p>
+      )}
 
       {cycleId !== null && (
         <>

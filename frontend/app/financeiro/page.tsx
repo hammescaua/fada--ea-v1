@@ -11,6 +11,7 @@ import {
   CostByCategoryChart,
   ProfitScenarioChart,
 } from "@/components/financial-charts";
+import { useFarmContext } from "@/lib/context";
 import { PageHeader } from "@/components/page-header";
 import { ErrorBlock, LoadingBlock, Spinner } from "@/components/states";
 import { Button } from "@/components/ui/button";
@@ -42,8 +43,8 @@ function Stat({
 }
 
 export default function FinanceiroPage() {
-  const [cycleInput, setCycleInput] = React.useState("");
-  const [cycleId, setCycleId] = React.useState<number | null>(null);
+  const ctx = useFarmContext();
+  const cycleId = ctx.cropCycleId; // safra vem do contexto global (sem digitar ID)
   const [priceInput, setPriceInput] = React.useState("125");
 
   const costQuery = useQuery<CostBreakdown>({
@@ -68,61 +69,11 @@ export default function FinanceiroPage() {
         description="Custos de produção, ponto de equilíbrio e cenários de lucro de um ciclo de cultivo."
       />
 
-      {/* INPUTS */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Parâmetros</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const id = Number(cycleInput);
-              if (!cycleInput || Number.isNaN(id)) return;
-              setCycleId(id);
-              financials.reset();
-            }}
-            className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end"
-          >
-            <div className="space-y-2">
-              <Label htmlFor="cycleId">ID do ciclo de cultivo</Label>
-              <Input
-                id="cycleId"
-                type="number"
-                min="1"
-                value={cycleInput}
-                onChange={(e) => setCycleInput(e.target.value)}
-                placeholder="Ex.: 1"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="price">Preço da saca (R$/sc)</Label>
-              <Input
-                id="price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={priceInput}
-                onChange={(e) => setPriceInput(e.target.value)}
-              />
-            </div>
-            <div>
-              <Button type="submit" disabled={!cycleInput}>
-                Carregar custos
-              </Button>
-            </div>
-          </form>
-          <p className="text-xs text-muted-foreground">
-            Crie ciclos na página{" "}
-            <span className="font-medium">Captura de Dados</span> e registre
-            eventos com custo na página <span className="font-medium">Safra</span>.
-          </p>
-        </CardContent>
-      </Card>
-
       {cycleId === null ? (
         <p className="text-sm text-muted-foreground">
-          Informe um ID de ciclo para começar.
+          Selecione a <span className="font-medium">Fazenda · Safra</span> no topo da
+          página para ver os custos. Registre eventos com custo na página{" "}
+          <span className="font-medium">Minha Lavoura</span>.
         </p>
       ) : (
         <div className="space-y-6">
